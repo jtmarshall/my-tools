@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<style>
+    table, th, td {
+        border: solid 2px #e9e9e9;
+    }
+</style>
+<body>
+    <h3>
+        404 Errors Found: <b>{{ .ErrCount }}</b>
+    </h3>
+
+    {{range $domain, $val := .ErrSet}}
+    <h3>{{ $domain }}</h3>
+        <table cellpadding="2" cellspacing="0" id="bodyTable">
+            <tr>
+                <th align="left" width="40px;">
+                    #
+                </th>
+                <th>
+                    404 Link
+                </th>
+                <th>
+                    Referred From / Found On
+                </th>
+                <th>
+                    Timestamp
+                </th>
+            </tr>
+            <!-- Iterate through the sorted keys in map passed into the Template Data -->
+        {{range $index, $pageKey := $val}}
+            <tr>
+                <td align="left">
+                    <b> {{ $index }} </b>
+                </td>
+                <td align="left">
+                    <b> {{ $pageKey.Page.String }} </b>
+                </td>
+                <td align="left">
+                    {{ $pageKey.Referer.String }}
+                </td>
+                <td align="left" style="min-width: 100px !important;">
+                    {{ $pageKey.TimeStamp }}
+                </td>
+
+            </tr>
+        {{end}}
+        </table>
+    <br/>
+    {{end}}
+
+</body>
+</html>

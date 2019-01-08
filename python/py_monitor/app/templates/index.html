@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!--Auto refresh page every 60 sec-->
+    <meta http-equiv="refresh" content="60" >
+    <title>Status</title>
+    <!--Bootstrap-->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css"
+          integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+</head>
+<body style="background-color: #616161; width: 98%; padding-left: 1%; text-align: center; font-size: .8em;">
+<h3 style="color: #fff;">{{ time }}</h3>
+
+<div class="row" style="padding: 10px;">
+    {% for item in domain_list%}
+    {% if item[1] > 0 %}
+    <div class="col-sm-3" style="padding: 5px;">
+        <div class="card bg-danger">
+            <a href='http://{{ item[0] }}' target="_blank" style="color: #fff;">
+                <div class="card-body">
+                    <p class="card-text">{{ item[0] | replace("www.","") }}</p>
+                </div>
+            </a>
+        </div>
+    </div>
+    {% endif %}
+    {% endfor %}
+</div>
+
+
+<div class="row" style="padding: 10px;">
+    {% for item in domain_list%}
+    {% if item[1] == 0 %}
+    <div class="col-sm-3" style="padding: 5px;">
+        <div class="card bg-success">
+            <a href='http://{{ item[0] }}' target="_blank" style="color: #fff;">
+                <div class="card-body">
+                    <p class="card-text">{{ item[0] | replace("www.","") }}</p>
+                </div>
+            </a>
+        </div>
+    </div>
+    {% endif %}
+    {% endfor %}
+</div>
+
+</body>
+</html>

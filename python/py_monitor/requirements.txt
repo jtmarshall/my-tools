@@ -1,0 +1,7 @@
+flask
+celery
+redis
+requests
+sqlalchemy
+pymysql
+flower
