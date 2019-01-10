@@ -14,7 +14,7 @@ def index():
     return render_template("index.html")
 
 
-df = pd.DataFrame(np.random.randint(0, 100, size=(20, 4)), columns=list('ABCD'))
+df = pd.DataFrame(np.random.randint(0, 100, size=(7, 5)), columns=['Direct', 'Email', 'Organic', 'PaidAd', 'Referring'])
 
 
 # spit out panda data
