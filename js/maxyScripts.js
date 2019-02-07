@@ -31,8 +31,7 @@ $(window).ready(function () {
 });
 
 // Accordion: checks for h2 tags and makes the p tags underneath each fold into Accordion
-<
-style >
+<style >
     /* Style the buttons that are used to open and close the accordion panel */
     button.accordion {
         background - color: #eee;
@@ -229,7 +228,7 @@ if (window.location.host != "www.life-healing.com" && window.location.host != "w
 // END Video plays action
 
 // START Breadcrumb trail for webform analytics
-(function () {
+(function() {
     // Set cookie with name(key) and value
     function setCookie(name, value) {
       document.cookie = name + "=" + value;
