@@ -1,0 +1,99 @@
+<style>
+    #snackbar {
+        visibility: hidden;
+        width: 400px;
+        background-color: #061f5c;
+        color: #fff;
+        text-align: center;
+        border-radius: 2px;
+        padding: 14px;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        bottom: 100px;
+    }
+
+    /* Show the snackbar */
+    #snackbar.show {
+        visibility: visible;
+        -webkit-animation: fadein 0.5s;
+        animation: fadein 0.5s;
+    }
+
+    /* The Close Button */
+    .close {
+        color: #aaaaaa;
+        float: right;
+        font-size: 26px;
+        font-weight: bold;
+        margin-top: -8px;
+        margin-right: -2px;
+    }
+
+    .close:hover,
+    .close:focus {
+        color: #41464d;
+        text-decoration: none;
+        cursor: pointer;
+    }
+</style>
+
+<div id="snackbar">
+    <span class="close" id="lightboxClose">&times;</span>
+    <h3 style="margin:.5em 0; color: #fff"><b>Discounted Rates</b>
+    </h3>
+    <p id="snackText">
+        now offering special rates for new participants and alumni!
+    </p>
+    <button id="snackRatesBtn">View Our Rates</button>
+</div>
+
+<script>
+    // Wait for jQuery
+    function defer(method) {
+        if (window.jQuery) {
+            method();
+        } else {
+            setTimeout(function () {
+                defer(method);
+            }, 50);
+        }
+    }
+
+    // Called when jQuery is loaded
+    defer(function () {
+        var $ = jQuery;
+
+        // Show snackbar after 3sec delay
+        function showSnack() {
+            setTimeout(function () {
+                document.getElementById("snackbar").className = "show";
+            }, 3000);
+        }
+
+        window.onload = function () {
+            var checkSnack = sessionStorage.getItem('showedSnack');
+            if (checkSnack != 'true') {
+                showSnack();
+            }
+
+            // Get element that closes the modal
+            var closeSpan = document.getElementById("lightboxClose");
+            // When user clicks on (x), close the modal
+            closeSpan.onclick = function () {
+                jQuery('#snackbar').hide();
+                sessionStorage.setItem('showedSnack', 'true');
+            };
+
+            // Get snack button elements
+            var snackRatesBtn = document.getElementById("snackRatesBtn");
+
+            // When user clicks on snackbar No button
+            snackRatesBtn.onclick = function () {
+                jQuery('#snackbar').hide();
+                sessionStorage.setItem('showedSnack', 'true');
+                location.href = "www.exampleurl.com";
+            };
+        };
+    });
+</script>

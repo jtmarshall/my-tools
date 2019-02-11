@@ -31,7 +31,8 @@ $(window).ready(function () {
 });
 
 // Accordion: checks for h2 tags and makes the p tags underneath each fold into Accordion
-<style >
+<
+style >
     /* Style the buttons that are used to open and close the accordion panel */
     button.accordion {
         background - color: #eee;
@@ -228,42 +229,42 @@ if (window.location.host != "www.life-healing.com" && window.location.host != "w
 // END Video plays action
 
 // START Breadcrumb trail for webform analytics
-(function() {
+(function () {
     // Set cookie with name(key) and value
     function setCookie(name, value) {
-      document.cookie = name + "=" + value;
+        document.cookie = name + "=" + value;
     }
-  
+
     // Retrieve cookie value by name(key)
     function getCookie(name) {
-      var reg = new RegExp(name + "=([^;]+)");
-      var val = reg.exec(document.cookie);
-      // Return parsed JSON if not null
-      return (val != null) ? val[1] : null;
+        var reg = new RegExp(name + "=([^;]+)");
+        var val = reg.exec(document.cookie);
+        // Return parsed JSON if not null
+        return (val != null) ? val[1] : null;
     }
-  
+
     // Get current page
     var currentPath = document.location.pathname;
     // Get last page from referrer; replacing host to just get path
     var lastPath = document.referrer.replace(location.origin, '');
-  
+
     // If not same page as last and navigation.type was not a refresh
     if (currentPath !== lastPath && performance.navigation.type === 0) {
-      var cookieName = 'breadcrumbs';
-      // Use session storage to read and update cookie; because it is more consistent
-      var seshCookie = sessionStorage.getItem(cookieName);
-  
-      if (seshCookie === null) {
-        sessionStorage.setItem(cookieName, currentPath);
-      } else {
-        // If cookie not empty append current path to original value
-        seshCookie += '>' + currentPath;
-        console.log('update cookie: ', seshCookie);
-        sessionStorage.setItem(cookieName, seshCookie);
-      }
-  
-      // Overwrite cookie with session storage val
-      setCookie(cookieName, seshCookie);
+        var cookieName = 'breadcrumbs';
+        // Use session storage to read and update cookie; because it is more consistent
+        var seshCookie = sessionStorage.getItem(cookieName);
+
+        if (seshCookie === null) {
+            sessionStorage.setItem(cookieName, currentPath);
+        } else {
+            // If cookie not empty append current path to original value
+            seshCookie += '>' + currentPath;
+            console.log('update cookie: ', seshCookie);
+            sessionStorage.setItem(cookieName, seshCookie);
+        }
+
+        // Overwrite cookie with session storage val
+        setCookie(cookieName, seshCookie);
     }
-  })();
-  // END Breadcrumbs
+})();
+// END Breadcrumbs

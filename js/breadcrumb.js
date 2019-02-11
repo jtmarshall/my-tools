@@ -5,7 +5,7 @@
 // START Breadcrumb trail for webform analytics
 (() => {
   // Set cookie with name(key) and value
-  setCookie = (name, value) => {
+  var setCookie = (name, value) => {
     document.cookie = name + "=" + value;
   }
 
