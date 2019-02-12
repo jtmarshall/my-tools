@@ -2,6 +2,7 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="2f7a1b27-34f1-4091-918b-d11dad3a30b3" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/../../../js/snackbar.html" beforeDir="false" afterPath="$PROJECT_DIR$/../../../js/snackbar.html" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
@@ -15,8 +16,8 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/server/server.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="240">
-              <caret line="16" column="108" selection-start-line="16" selection-start-column="108" selection-end-line="16" selection-end-column="108" />
+            <state relative-caret-position="420">
+              <caret line="28" column="25" selection-start-line="28" selection-start-column="25" selection-end-line="28" selection-end-column="25" />
               <folding>
                 <element signature="e#12#52#0" expanded="true" />
               </folding>
@@ -141,16 +142,19 @@
       <workItem from="1547150378132" duration="7000" />
       <workItem from="1547150409692" duration="488000" />
       <workItem from="1547570701802" duration="1451000" />
+      <workItem from="1550004391551" duration="10000" />
+      <workItem from="1550004755573" duration="119000" />
+      <workItem from="1550008823757" duration="523000" />
     </task>
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="3587000" />
+    <option name="totallyTimeSpent" value="4239000" />
   </component>
   <component name="ToolWindowManager">
     <frame x="1" y="-1057" width="1491" height="1004" extended-state="0" />
     <layout>
-      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.23602484" />
+      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.24568668" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
       <window_info id="Favorites" order="2" side_tool="true" />
       <window_info anchor="bottom" id="Message" order="0" />
@@ -165,7 +169,7 @@
       <window_info anchor="bottom" id="Database Changes" order="9" />
       <window_info anchor="bottom" id="Event Log" order="10" side_tool="true" />
       <window_info anchor="bottom" id="Terminal" order="11" />
-      <window_info anchor="bottom" auto_hide="true" x="155" y="-941" width="1236" height="889" id="Python Console" order="12" type="WINDOWED" weight="0.32953367" />
+      <window_info anchor="bottom" auto_hide="true" x="219" y="-942" width="1236" height="889" id="Python Console" order="12" type="WINDOWED" weight="0.32953367" />
       <window_info anchor="right" id="Commander" internal_type="SLIDING" order="0" type="SLIDING" weight="0.4" />
       <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
       <window_info anchor="right" content_ui="combo" id="Hierarchy" order="2" weight="0.25" />
@@ -182,8 +186,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/server/server.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="240">
-          <caret line="16" column="108" selection-start-line="16" selection-start-column="108" selection-end-line="16" selection-end-column="108" />
+        <state relative-caret-position="420">
+          <caret line="28" column="25" selection-start-line="28" selection-start-column="25" selection-end-line="28" selection-end-column="25" />
           <folding>
             <element signature="e#12#52#0" expanded="true" />
           </folding>
