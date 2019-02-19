@@ -22,6 +22,8 @@
 
     if (seshCookie === null) {
       sessionStorage.setItem(cookieName, currentPath);
+      // Update the null value to current path
+      seshCookie = currentPath;
     } else {
       // If cookie not empty append current path to original value
       seshCookie += '>' + currentPath;
