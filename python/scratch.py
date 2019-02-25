@@ -1,21 +1,17 @@
-x = int(input())
-y = int(input())
-z = int(input())
-n = int(input())
-
-print([[i, j, k] for i in range(x + 1) for j in range(y + 1) for k in range(z + 1) if ((i + j + k) != n)])
 
 
-x = int(input())
-y = int(input())
-n = int(input())
-ar = []
-p = 0
-for i in range(x + 1):
-    for j in range(y + 1):
-        if i+j != n:
-            ar.append([])
-            ar[p] = [i, j]
-            p += 1
+# Lists out the pull requests
+listPulls = codecommit.list_pull_requests(
+    repositoryName=repository,
+    authorArn=auth,
+    maxResults=5
+)
 
-print(ar)
+# Gets the current pull request
+currentPullRequest = codecommit.get_pull_request(
+    pullRequestId= listPulls['pullRequestIds'][0]
+)
+
+comments = codecommit.get_comments_for_pull_request(
+    pullRequestId=pullRequest
+)
