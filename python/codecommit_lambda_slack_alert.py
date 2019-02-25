@@ -11,11 +11,11 @@ def lambda_handler(event, context):
     references = { reference['ref'] for reference in event['Records'][0]['codecommit']['references'] }
     print("References: "  + str(references))
     
-    # Get the commit id
+    # Get the commit ID
     commits = [ reference['commit'] for reference in event['Records'][0]['codecommit']['references'] ]
     print("CommitID: "  + commits[0])
     
-    # Get the repository from the event and show its git clone URL
+    #Get the repository from the event and show its git clone URL
     repository = event['Records'][0]['eventSourceARN'].split(':')[5]
     
     # Get commit info
@@ -23,16 +23,31 @@ def lambda_handler(event, context):
         repositoryName = repository,
         commitId = commits[0]
     )
-    
-    # Grab author and msg from latest commit
     auth = commitData['commit']['author']['name']
-    msg = commitData['commit']['message']
+    # msg = commitData['commit']['message']
+    
+    # Lists out the pull requests
+    listPulls = codecommit.list_pull_requests(
+        repositoryName = repository,
+        maxResults = 5
+    )
+    
+    # Gets the current pull request, 
+    currentPullRequest = codecommit.get_pull_request(
+        pullRequestId = listPulls['pullRequestIds'][0]
+    )
+    
+    print('Current pull request: ', currentPullRequest)
+    
+    # Get title and description of pull request
+    pullRequestTitle = currentPullRequest['pullRequest']['title']
+    pullRequestDescription = currentPullRequest['pullRequest']['description']
     
     try:
         # Use slack's incomming webhook url
         webhook_url = "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX"
         # Format the message to send in slack
-        slack_data = {'text': "*`Deploying " + repository + "`*: " + msg + " - " + auth}
+        slack_data = {'text': "*`Deploying " + repository + "`*: " + pullRequestTitle + " " + pullRequestDescription + "\n- " + auth}
         
         # Make the post to the webhook
         response = requests.post(
