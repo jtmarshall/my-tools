@@ -54,10 +54,15 @@ type DomainInfo struct {
 	GraphData404    []float64
 }
 
+type FacilityLabel struct {
+	FacilityName string
+	FacilityType string
+}
+
 // Global cache map to return to frontend
 var weeklyCacheStatus = make(map[string]DomainInfo)
 var monthlyCacheStatus = make(map[string]DomainInfo)
-var cacheFacilities = make(map[string]string)
+var cacheFacilities = make(map[string]FacilityLabel)
 var cached404Domains = map[string][]Four04Props{}
 var cache404List = map[string][]string{}
 var lastStatusUpdate = time.Now()
@@ -144,7 +149,7 @@ func insertPage(dbIn *sql.DB, domain string, url string, code int, respTime floa
 				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		domain, url, time.Now(), code, respTime, ttfb, urlErr, redirects, crawlID)
 	if err2 != nil {
-		log.Fatal("INSERT page ERR: ", err2)
+		log.Println("INSERT page ERR: ", err2)
 	}
 	// fmt.Println("Finish InsertDB Func")
 }
@@ -257,11 +262,11 @@ func UpdateStatusTable(domain string, crawlID int) {
 }
 
 // Creates and returns a domain/facility name map from DB
-func GenerateFacilityList() map[string]string {
+func GenerateFacilityList() map[string]FacilityLabel {
 
-	if len(cached404Domains) < 1 || lastStatusUpdate.Sub(time.Now()) < (-1*time.Hour) {
+	if len(cacheFacilities) < 1 || lastStatusUpdate.Sub(time.Now()) < (-10*time.Minute) {
 		// Generate list if empty or cache is old
-		facilityList := map[string]string{}
+		facilityList := make(map[string]FacilityLabel)
 
 		// DB connect
 		db, err := sql.Open("mysql", connectString)
@@ -271,7 +276,7 @@ func GenerateFacilityList() map[string]string {
 		defer db.Close()
 
 		// Query domain/facility name pairs
-		status, queryErr := db.Query(`SELECT domain, facility_name FROM status`)
+		status, queryErr := db.Query(`SELECT domain, facility_name, facility_type FROM status`)
 		if queryErr != nil {
 			log.Println("QUERY Status Table ERR: ", queryErr)
 			return facilityList
@@ -282,14 +287,15 @@ func GenerateFacilityList() map[string]string {
 			var (
 				domain       sql.NullString
 				facilityName sql.NullString
+				facilityType sql.NullString
 			)
-			scanErr := status.Scan(&domain, &facilityName)
+			scanErr := status.Scan(&domain, &facilityName, &facilityType)
 			if scanErr != nil {
 				log.Println("STATUS.NEXT ERR: ", scanErr)
 				return facilityList
 			}
 
-			facilityList[domain.String] = facilityName.String
+			facilityList[domain.String] = FacilityLabel{facilityName.String, facilityType.String}
 		}
 
 		cacheFacilities = facilityList
@@ -374,7 +380,7 @@ func Generate404List() {
 		temp404List[props.Page.String] = []string{props.Page.String, props.Domain.String, props.Referer.String, props.TimeStamp.String()}
 
 		// Set facility name value from temp cached facilities
-		props.FacilityName.String = tempFacilities[props.Domain.String]
+		props.FacilityName.String = tempFacilities[props.Domain.String].FacilityName
 
 		// grouping cache by domain
 		currentDomain := props.Domain.String

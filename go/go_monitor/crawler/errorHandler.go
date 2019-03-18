@@ -43,16 +43,24 @@ func ErrorDaemon() {
 func DaemonAddError(err string) {
 	// add into map
 	errorMap[err] = true
-	log.Println("Add error url:", err)
+	log.Println("Add url ERR:", err)
 }
 
 // re-parse url
 func checkURLStatus(url string) int {
 	// url passed in already has "https://" or http whatever
-	resp, err := http.Get(url)
+	resp, err := http.Get("https://" + url)
 	if err != nil {
 		log.Println(err)
 		return 0
+	}
+	if err != nil {
+		log.Println("Daemon Check GET Request ERR:", err)
+		// retry without https
+		resp, err = http.Get("http://" + url)
+		if err != nil {
+			log.Println("Daemon ERR2:", err)
+		}
 	}
 	defer resp.Body.Close()
 

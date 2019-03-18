@@ -17,7 +17,8 @@ const (
 
 var (
 	// Emails
-	SoloEmail = []string{"tester@test.com"}
-	FromAddr  = "from@test.com"
-	ToAddr    = []string{"toAddr@test.com"}
+	SoloEmail    = []string{"tester@test.com"}
+	FromAddr     = "from@test.com"
+	ToAddr       = []string{"toAddr@test.com"}
+	EmailList404 = []string{"tester@test.com"}
 )
