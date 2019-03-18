@@ -41,8 +41,14 @@ def lambda_handler(event, context):
     
     # Get title and description of pull request
     pullRequestTitle = currentPullRequest['pullRequest']['title']
-    pullRequestDescription = currentPullRequest['pullRequest']['description']
     
+    # Handle empty pull descriptions
+    try:
+        pullRequestDescription = currentPullRequest['pullRequest']['description']
+    except:
+        pullRequestDescription = ""
+    
+    # Posting to slack
     try:
         # Use slack's incomming webhook url
         webhook_url = "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX"

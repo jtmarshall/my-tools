@@ -36,9 +36,7 @@ type UrlList map[string]*UrlInfo
 
 // Populate Domain list on init
 func init() {
-	if len(domainList) < 1 {
-		getDomainList()
-	}
+	getDomainList()
 	// Sort list alphabetically
 	sort.Strings(domainList)
 }
@@ -90,20 +88,21 @@ func RunAllCrawl() {
 // Crawl only homepages for status updates
 func homeCrawl(domains []string) {
 	for _, domain := range domains {
-		resp, err := http.Get("http://" + domain)
+		resp, err := http.Get("https://" + domain)
 		if err != nil {
-			log.Println(err)
-			DaemonAddError(domain)
-			continue
+			log.Println("GET HTTPS Request ERR: ", err)
+			// retry without https
+			resp, err = http.Get("http://" + domain)
+			if err != nil {
+				log.Println("GET HTTP Request ERR: ", err)
+				continue
+			}
 		}
-
-		// Print out optimizely snippets found on each domain
-		// fmt.Println(domain, OptlyLinks(domain))
 
 		statusCode := resp.StatusCode
 		// If we get 5xx send to error handler daemon
 		if statusCode >= 500 {
-			DaemonAddError("http://" + domain)
+			DaemonAddError(domain)
 		}
 
 		// Update Domain status in the map structure
