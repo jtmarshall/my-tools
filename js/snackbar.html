@@ -1,9 +1,9 @@
 <style>
     #snackbar {
         visibility: hidden;
-        width: 400px;
-        background-color: #061f5c;
-        color: #fff;
+        width: 420px;
+        background-color: #003764;
+        color: rgba(255,255,255,.8);
         text-align: center;
         border-radius: 2px;
         padding: 14px;
@@ -18,6 +18,10 @@
         visibility: visible;
         -webkit-animation: fadein 0.5s;
         animation: fadein 0.5s;
+    }
+
+    #snackText {
+        font-size: 0.95em;
     }
 
     /* The Close Button */
@@ -36,24 +40,36 @@
         text-decoration: none;
         cursor: pointer;
     }
+
+    /* iPhone X and smaller styles */
+    @media only screen and (max-device-width : 812px) {
+        #snackbar {
+            max-width: 100%;
+        }
+    }
 </style>
 
 <div id="snackbar">
     <span class="close" id="lightboxClose">&times;</span>
-    <h2 style="margin:.5em 0; color: #a3d65c">
-        <b>Discounted Rates</b>
-    </h2>
+    <h3 style="margin:.5em 0; color: #fff">
+        <b>We're Relocating!</b>
+    </h3>
     <p id="snackText">
-        Structure House is now offering special rates for new participants and alumni!
+        Center for Hope of the Sierras is proud to announce the relocation of our treatment services to the Las Vegas
+        area. We are no longer accepting admissions at our Reno location, instead placing our focus on the development
+        of services in Henderson, NV, where we will maintain our reputation as a leader in eating disorder treatment.
     </p>
     <div class="acadia_button">
-        <a id="snackRatesBtn" href="https://www.structurehouse.com/plan-your-stay/rates/" class="button">
-            <span class="text">View Our Rates</span>
+        <a id="snackBtn" href="https://www.centerforhopeofthesierras.com/continuing-to-serve-you/" class="button">
+            <span class="text">Read More</span>
         </a>
     </div>
 </div>
 
 <script>
+    // Specific urls we don't want to show the snackbar
+    var skipList = [];
+
     // Wait for jQuery
     function defer(method) {
         if (window.jQuery) {
@@ -64,12 +80,6 @@
             }, 50);
         }
     }
-
-    // Specific urls we don't want to show the snackbar
-    var skipList = [
-        'https://www.structurehouse.com/about/articles/young-adults-taking-control-of-health/',
-        'https://www.structurehouse.com/about/articles/adults-taking-control-of-health/'
-    ];
 
     // Called when jQuery is loaded
     defer(function () {
@@ -84,10 +94,8 @@
 
         window.onload = function () {
             var checkSnack = sessionStorage.getItem('showedSnack');
-            var url = window.location.href;
 
-            // If we haven't already displayed the snack, and if the url is not in skip list and is not an LP
-            if (checkSnack != 'true' && skipList.indexOf(url) == -1 && url.indexOf('/lp') == -1) {
+            if (checkSnack != 'true' && window.location.href != "https://www.centerforhopeofthesierras.com/continuing-to-serve-you/") {
                 showSnack();
             }
 
@@ -100,13 +108,16 @@
             };
 
             // Get snack button elements
-            var snackRatesBtn = document.getElementById("snackRatesBtn");
+            var snackLinkBtn = document.getElementById("snackBtn");
 
-            // When user clicks on snackbar No button
-            snackRatesBtn.onclick = function () {
+            // When user clicks on snackbar button
+            snackLinkBtn.onclick = function () {
                 jQuery('#snackbar').hide();
                 sessionStorage.setItem('showedSnack', 'true');
+                window.location.href =
+                    "https://www.centerforhopeofthesierras.com/continuing-to-serve-you/";
             };
         };
     });
+    
 </script>

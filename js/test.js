@@ -1,65 +1,82 @@
-function runZopim(timer) {
-    if (typeof $zopim !== 'undefined') {
-        $zopim(function () {
-            if (zendeskHide == 1) {
-                $zopim.livechat.hideAll();
-            } else {
-                if (zendeskReposition == 1) { // zendeskReposition is set in /inc/theme-dynamic-css.php
-                    $zopim.livechat.button.setOffsetVertical(50);
-                    $zopim.livechat.button.setOffsetVerticalMobile(50);
-                    $zopim.livechat.window.setOffsetVertical(50);
-                }
-                $zopim.livechat.theme.setTheme('simple'); // this swaps the questions bubble with a smaller panel
-                $zopim.livechat.theme.setColor(zendeskPrimaryColor); // zendeskPrimaryColor is set in /inc/theme-dynamic-css.php
-                // $zopim.livechat.bubble.setColor(zendeskSecondaryColor); // zendeskSecondaryColor is set in /inc/theme-dynamic-css.php
-                $zopim.livechat.badge.setColor(zendeskSecondaryColor); // zendeskSecondaryColor is set in /inc/theme-dynamic-css.php
-                $zopim.livechat.badge.setLayout('text_only');
-                $zopim.livechat.badge.setText('Have questions? Click to chat.');
-                $zopim.livechat.theme.setFontConfig({
-                    google: {
-                        families: [zendeskFont]
-                    }
-                }, zendeskFont); // zendeskFont is set in /inc/theme-dynamic-css.php
-                $zopim.livechat.theme.reload();
-                // $zopim.livechat.badge.show();
-            }
-        });
-    } else if (timer < 20) {
-        setTimeout(function () {
-            // Increment
-            timer += 1;
-            // Wait 100ms for $zopim to exist, try again
-            runZopim(timer);
-        }, 100);
-    } else {
-        // Return after 20 failed intervals
-        console.log("zopim not loaded");
-        return;
+<script>
+  (function() {
+    // Cookies to Track Session Time
+    var now = new Date();
+    // var exp = new Date(now.getTime() + 7 * 24 * 3600 * 1000); // Expire in 7 days
+
+    // Set cookie with name(key) and value
+    function setCookie(name, value)
+    {
+      // Store as stringified JSON
+      value = JSON.stringify(value);
+      document.cookie=name + "=" + escape(value);
     }
-}
 
-runZopim(0);
+    // Retrieve cookie value by name(key)
+    function getCookie(name)
+    {
+      var reg = new RegExp(name + "=([^;]+)");
+      var val = reg.exec(document.cookie);
+      // Return parsed JSON if not null
+      return (val != null) ? JSON.parse(unescape(val[1])) : null;
+    }
+   	
+    function checkUserCookie(cookieName, usrCookie)
+    {
+      // Set cookie if one doesn't exist yet
+      if (usrCookie == null) {
+        var cookieVal = {
+          date: now,
+          pageCount: 1,
+          eventFired: false
+        };
+        setCookie(cookieName, cookieVal);
+      } else {
+        // If we are at 2 or more pages and an event hasn't already been fired
+        if (usrCookie.pageCount >= 2 && usrCookie.eventFired == false) {
+          var cookieTime = new Date(usrCookie.date);
+          var currentTime = new Date();
+          var diffSeconds = (currentTime - cookieTime)/1000;
 
+          // Then if we hit the 90sec mark we can push the event
+          if (diffSeconds >= 90) {
+            // Push trigger event
+            window.dataLayer = window.dataLayer || [];
+            window.dataLayer.push({
+              event: 'siteEngagementEvent',
+              attributes: {
+                eventFired: '2p90s'
+              }
+            });
 
-// try {
-//     var $ = jQuery;
-//     // Generate content on load
-//     $(document).ready(function () {
-//         setTimeout(function () {
-//             // START timeout to wait for maxy tags to exist
-//             console.log("utm check fire");
-//             var h1ElementExists = document.getElementById("utm_h1");
-//             var pElementExists = document.getElementById("utm_p");
-//             if (h1ElementExists && pElementExists) {
-//                 // If we can find the "utm" tags, it's a valid campaign so generate content
-//                 var person = new Person();
-//                 person.generateCampaign();
-//                 console.log("utm content loaded");
-//             }
-
-//             // END timeout
-//         }, 10);
-//     });
-// } catch (err) {
-//     runZopim();
-// }
+            // Set eventFired value true and update cookie
+            usrCookie.eventFired = true;
+            setCookie(cookieName, usrCookie);
+          }
+        } else if (usrCookie.pageCount < 2) {
+          // Update count
+          usrCookie.pageCount++;
+          setCookie(cookieName, usrCookie);
+        }
+      }
+    }
+    
+    var cookieName = 'siteEngagement';
+    // Get user cookie
+    var usrCookie = getCookie(cookieName);
+    
+    // Check every 5sec
+    var interval = setInterval(function(){
+      checkUserCookie(cookieName, usrCookie);
+      
+      // Stop looping if event was fired, or usrCookie is null
+      if (usrCookie == null) {
+        clearInterval(interval);
+      }
+      else if (usrCookie.eventFired == true) {
+        clearInterval(interval);
+      }
+    }, 5000);
+    
+  })();
+</script>

@@ -1,8 +1,6 @@
-from sqlalchemy import Column, DateTime, String, Integer, ForeignKey, func, update
-from sqlalchemy.orm import relationship, backref
+from sqlalchemy import Column, DateTime, String, Integer, ForeignKey, func, update, create_engine
+from sqlalchemy.orm import relationship, backref, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 from sqlalchemy.types import *
 
 

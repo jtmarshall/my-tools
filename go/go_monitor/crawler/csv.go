@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"sort"
+	"strconv"
 )
 
 
@@ -41,6 +42,31 @@ func Generate404CSV() int {
 	csvWriter.Flush()
 
 	return len(strToCSV)
+}
+
+// Create 404 csv for after all crawl
+func GenerateCSV(filename string, headers []string, crawlList SearchUrlList) {
+	file, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY, 0777)
+	defer file.Close()
+	if err != nil {
+		os.Exit(1)
+	}
+
+	// Create string matrix for csv with headers input first
+	strToCSV := [][]string{headers}
+
+	// Iterate through crawlList appending url, status, comment
+	for k, url := range crawlList {
+		strToCSV = append(strToCSV, []string{k, strconv.Itoa(url.status), url.comment})
+	}
+
+	// Create CSV writer, then write to CSV, then flush
+	csvWriter := csv.NewWriter(file)
+	err = csvWriter.WriteAll(strToCSV)
+	if err != nil {
+		log.Println(err)
+	}
+	csvWriter.Flush()
 }
 
 // Generate csv for solo manual crawl

@@ -1,0 +1,6 @@
+"v=spf1 ip4:173.167.185.29 ip4:12.231.139.100 a include:_spf.etrn.com include:mktomail.com ~all"
+"google-site-verification=4cl0NJ8_B8eYUrOM94-MYTTIn8DeXnzqaOoEDyT8WzA"
+"facebook-domain-verification=wpa1s410sl4qumiwqzbkm3y8sv10ge"
+"iLvrVdSZFwOR7ueBC1u6v/k9dszlsqLULburnDg/YXnc6UyHLib21bl2Jzy6u3YZDdVbPro1L3tsac8yMqe08A=="
+"MS=ms55610437"
+"pSspztDEFbq9RO7z5lWlkjV1X6cC3sMWBAseUShPc7Jd/X2tjTSC/HGelH0ovfea+ESK41DcBTTIxK7ffKEU3Q=="
