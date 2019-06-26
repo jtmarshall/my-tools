@@ -15,15 +15,29 @@ import (
 
 	// Mysql driver
 	_ "github.com/go-sql-driver/mysql"
+	"golang.org/x/net/context"
 	// Go get...
 	"golang.org/x/net/html"
 )
 
+var cancelCrawl = false
 var skipMap = map[string]bool{
 	"www.test.com": true,
 }
 var domainList []string
-var domainStatus = make(map[string]int) //1st index is status code, 2nd is offline count
+var domainStatus = make(map[string]int)
+// Page Stats
+type PageStats struct {
+	domain     string
+	url        string
+	statusCode int
+	respTime   float64
+	ttfb       float64
+	urlErr     string
+	redirects  int
+	crawlID    int
+}
+
 // struct for properties we wanna keep on each url
 type UrlInfo struct {
 	status  int
@@ -52,6 +66,34 @@ func RunHomeCrawl(c chan bool) {
 	c <- true
 }
 
+// Crawl only homepages for status updates
+func homeCrawl(domains []string) {
+	for _, domain := range domains {
+		resp, err := http.Get("https://" + domain)
+		if err != nil {
+			log.Println("Home Crawl HTTPS Request ERR: ", domain, err)
+			// retry without https
+			resp, err = http.Get("http://" + domain)
+			if err != nil {
+				log.Println("Home Crawl HTTP Request ERR: ", domain, err)
+				continue
+			}
+		}
+
+		statusCode := resp.StatusCode
+		// If we get 5xx AND it has NOT already been logged in domainStatus; send to error handler daemon
+		if statusCode >= 500 && domainStatus[domain] != statusCode {
+			DaemonAddError(domain)
+		}
+
+		// Update Domain status in the map structure
+		domainStatus[domain] = resp.StatusCode
+
+		// Explicit close connection for current Domain; (deferring will cause mem leak)
+		resp.Body.Close()
+	}
+}
+
 // RunAllCrawl starts the all crawl
 func RunAllCrawl() {
 	lockFileName := "crawlLock.txt"
@@ -59,10 +101,10 @@ func RunAllCrawl() {
 	// Get file stats
 	info, err := os.Stat(lockFileName)
 
-	// Check for crawl lock file so we don't duplicate cron job. (If it doesn't exist or file is 48hours old run crawl)
-	if err != nil || time.Now().Sub(info.ModTime()) > (48*time.Hour) {
+	// Check for crawl lock file so we don't duplicate cron job. (If it doesn't exist or file is 4hours old run crawl)
+	if err != nil || time.Now().Sub(info.ModTime()) > (4*time.Hour) {
 		// Have to double check if statement for mod time on file so we can validate err also
-		if os.IsNotExist(err) || time.Now().Sub(info.ModTime()) > (48*time.Hour) {
+		if os.IsNotExist(err) || time.Now().Sub(info.ModTime()) > (4*time.Hour) {
 			// Lock file doesn't exist; create the lock file
 			f, fErr := os.Create(lockFileName)
 			defer f.Close()
@@ -78,38 +120,11 @@ func RunAllCrawl() {
 			UpdateSkipMap()
 			// Reset Domain list
 			getDomainList()
+
 			// Start all crawl
 			allCrawl(domainList)
 			log.Println("All Crawl End.")
 		}
-	}
-}
-
-// Crawl only homepages for status updates
-func homeCrawl(domains []string) {
-	for _, domain := range domains {
-		resp, err := http.Get("https://" + domain)
-		if err != nil {
-			log.Println("GET HTTPS Request ERR: ", err)
-			// retry without https
-			resp, err = http.Get("http://" + domain)
-			if err != nil {
-				log.Println("GET HTTP Request ERR: ", err)
-				continue
-			}
-		}
-
-		statusCode := resp.StatusCode
-		// If we get 5xx send to error handler daemon
-		if statusCode >= 500 {
-			DaemonAddError(domain)
-		}
-
-		// Update Domain status in the map structure
-		domainStatus[domain] = resp.StatusCode
-
-		// Explicit close connection for current Domain; (deferring will cause mem leak)
-		resp.Body.Close()
 	}
 }
 
@@ -164,7 +179,6 @@ func SoloCrawl(domain string) (map[string]*DomainStats, int) {
 		listLen := -1
 
 		for len(urlList) != len(subCrawl(urlList, domain, crawlID, db)) {
-
 			// If we go too high, or if list length doesn't change from last iteration break out
 			if len(urlList) > 499 || listLen == len(urlList) {
 				break
@@ -172,11 +186,9 @@ func SoloCrawl(domain string) (map[string]*DomainStats, int) {
 			// Save length for this iteration
 			listLen = len(urlList)
 		}
-
 		// Send email report after manual crawl finishes
 		return SoloDomainReport(domain, crawlID)
 	}
-
 	// Return empty values if error
 	return map[string]*DomainStats{}, 0
 }
@@ -203,12 +215,16 @@ func allCrawl(domains []string) {
 			fmt.Println("Crawl ID Error:", err.Error())
 		}
 
-		// Channel buffer for concurrency of 12
-		chanBuff := make(chan bool, 12)
+		// Channel buffer for concurrency of 8
+		chanBuff := make(chan bool, 8)
 		// Prime queue
-		for len(chanBuff) < 12 {
+		for len(chanBuff) < 8 {
 			chanBuff <- true
 		}
+
+		cancelCrawl = false
+		// Create a new context, with cancellation function
+		ctx, cancel := context.WithCancel(context.Background())
 
 		// START Crawling!
 		for i := 0; i < len(domains); {
@@ -217,6 +233,12 @@ func allCrawl(domains []string) {
 			//	defer wg.Done()
 			//	StartCrawl(domains[i], int(crawlID), chan1, db)
 			//}(i)
+
+			// If we get cancellation signal
+			if cancelCrawl {
+				cancel()
+				return
+			}
 
 			// Check if the Domain is in the skip list
 			if skipMap[domains[i]] {
@@ -227,12 +249,12 @@ func allCrawl(domains []string) {
 
 			// Check if we have a val in buffer
 			if <-chanBuff {
+				log.Println(i, domains[i])
 				go func(i int) {
 					// log.Println("START", i, domains[i])
 					// Run
-					StartCrawl(domains[i], int(crawlID), chanBuff)
+					StartCrawl(ctx, domains[i], int(crawlID), chanBuff)
 				}(i)
-
 				// Increment outside go routine, or else we can't continue until that Domain finishes
 				i++
 			}
@@ -243,7 +265,7 @@ func allCrawl(domains []string) {
 }
 
 // Gets all url links returned from html response
-func StartCrawl(domain string, crawlID int, c chan bool) {
+func StartCrawl(ctx context.Context, domain string, crawlID int, c chan bool) {
 	// urlList := map[string]int{}  // Declare and Initialize Map for found links
 	urlList := make(UrlList)
 
@@ -252,251 +274,206 @@ func StartCrawl(domain string, crawlID int, c chan bool) {
 		c <- true
 	}()
 
-	// Retrieve all links in homepage body
-	links := AllLinks(domain)
+	// check for cancellation
+	select {
+	case <-ctx.Done():
+		return
 
-	// Iterate through grabbed links and insert into url list if not already in there
-	for _, linkString := range links {
-		if len(linkString) < 2 {
-			continue
+	// If no cancellation business as usual
+	default:
+		// Retrieve all links in homepage body
+		links := AllLinks(domain)
+
+		// Iterate through grabbed links and insert into url list if not already in there
+		for _, linkString := range links {
+			if len(linkString) < 2 {
+				continue
+			}
+			// if relative url append to Domain before insertion
+			if strings.HasPrefix(linkString, "/") {
+				linkString = "https://" + domain + linkString
+			}
+
+			// Finally check if the formatted linkString
+			if _, ok := urlList[linkString]; !ok {
+				urlList[linkString] = &UrlInfo{1, domain, domain}
+			}
 		}
 
-		// if relative url append to Domain before insertion
-		if string(linkString[0]) == "/" {
-			linkString = "http://" + domain + linkString
+		// DB connect; separate for each domain
+		db, err := sql.Open("mysql", connectString)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer db.Close()
+
+		// Save length for urlList
+		listLen := -1
+
+		// Crawl Loop; Keep (re)crawling while there are new links being added
+		for len(urlList) != len(subCrawl(urlList, domain, crawlID, db)) {
+
+			// If we go too high, or if list length doesn't change from last iteration break out
+			if len(urlList) > 499 || listLen == len(urlList) {
+				break
+			}
+			// Save length for this iteration
+			listLen = len(urlList)
 		}
 
-		// Finally check if the formatted linkString
-		if _, ok := urlList[linkString]; !ok {
-			urlList[linkString] = &UrlInfo{1, domain, domain}
-		}
+		// Start updating status table after crawl iteration finished.
+		go UpdateStatusTable(domain, crawlID)
 	}
-
-	// DB connect; separate for each domain
-	db, err := sql.Open("mysql", connectString)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer db.Close()
-
-	// Save length for urlList
-	listLen := -1
-
-	// Crawl Loop
-	// Keep (re)crawling while there are new links being added
-	for len(urlList) != len(subCrawl(urlList, domain, crawlID, db)) {
-
-		// If we go too high, or if list length doesn't change from last iteration break out
-		if len(urlList) > 499 || listLen == len(urlList) {
-			break
-		}
-		// Save length for this iteration
-		listLen = len(urlList)
-	}
-
-	// Start updating status table after crawl iteration finished.
-	go UpdateStatusTable(domain, crawlID)
 }
 
-// Crawl through all sub urls for Domain adding to original url list
-// This is where the "real" crawl starts
+// Crawl through all sub urls for Domain adding to original url list; where the "real" crawl starts
 func subCrawl(urlList UrlList, domain string, crawlID int, dbIn *sql.DB) UrlList {
 	// iterate through unique map of urls
 	for url, urlProps := range urlList {
 		// check if url is in Domain and if status code has not been set
 		if urlProps.status == 1 && strings.Contains(url, domain) {
-			urlErr := ""
-			redirects := 0
+			// struct to hold new page info
+			page := PageStats{
+				domain:     domain,
+				url:        url,
+				statusCode: 1,
+				respTime:   0,
+				ttfb:       0,
+				urlErr:     "",
+				redirects:  0,
+				crawlID:    crawlID,
+			}
+			ctype := ""
 
-			// Start request
-			preResp, respErr := http.NewRequest("GET", url, nil)
-			if respErr != nil {
-				fmt.Println("PreResp Err, Continuing: ", respErr)
-				urlErr = "No Response"
-				handleOutage(dbIn, domain, url, 0, crawlID, urlProps.referer)
-				// Skip to next url if error
-				continue
+			nextURL := url
+			// Check redirects up to 10
+			for page.redirects < 10 {
+				client := &http.Client{
+					CheckRedirect: func(req *http.Request, via []*http.Request) error {
+						return http.ErrUseLastResponse
+					}}
+
+				// GET Request
+				resp, err := client.Get(nextURL)
+				if err != nil {
+					log.Println("Resp Err, Continuing: ", err)
+					page.urlErr = "No Response"
+					handleOutage(dbIn, domain, url, 0, crawlID, urlProps.referer)
+					// Skip to next url if error
+					break
+				}
+
+				// Handle redirects
+				if 299 < resp.StatusCode && resp.StatusCode < 400 {
+					reqURL := resp.Request.URL.String()
+					nextURL = resp.Header.Get("Location")
+					// Check for http to https; by comparing request url with next url sans protocols
+					if !(strings.Trim(reqURL, "http") == strings.Trim(nextURL, "https")) {
+						// Increment redirect count if NOT a HTTPS promotion
+						page.redirects += 1
+					}
+				} else {
+					// Set the status so it doesn't stay one and keep getting crawled
+					urlProps.status = resp.StatusCode
+					ctype = resp.Header.Get("Content-Type")
+					page.url = nextURL
+
+					// Done with redirects; process page
+					pageScan(dbIn, resp, &page, urlProps.referer)
+					break
+				}
 			}
 
-			// Need to separate out into transport request since we want redirects
-			linkResp, linkErr := http.DefaultTransport.RoundTrip(preResp)
-			if linkErr != nil {
-				fmt.Println("LinkResp Err, Continuing: ", linkErr)
-				urlErr = "No Response"
-				handleOutage(dbIn, domain, url, 0, crawlID, urlProps.referer)
-				continue
-			} else {
-				// Get requested url string
-				reqURL := linkResp.Request.URL.String()
-				// Get landing url string
-				landingURL := linkResp.Header.Get("Location")
-
-				// If the landing url doesn't contain the domain then we've gone off track; skip iteration
-				if !strings.Contains(landingURL, domain) {
-					continue
-				}
-
-				// If Connection Successful, grab status code
-				code := linkResp.StatusCode
-
-				// HTTP to HTTPS handling, status code would be 301
-				if code == 301 {
-					// Check for http to https redirects; by comparing request url with landing url sans protocols
-					if strings.Trim(reqURL, "http") == strings.Trim(landingURL, "https") {
-						http.Get(landingURL)
-						resp, err := http.Get(landingURL)
-						if err != nil {
-							log.Println("HTTP to HTTPS Error: ", err)
-						}
-
-						// Update the url to have HTTPS
-						url = landingURL
-
-						// Set the code as the status code from the HTTPS GET request so we can handle properly
-						code = resp.StatusCode
-						resp.Body.Close()
-					}
-				}
-
-				// Set the status so it doesn't stay one and keep getting crawled
-				urlProps.status = code
-
-				// *!* After we are done with current loop's url: we must manually close connection to avoid mem leak *!*
-				linkResp.Body.Close()
-
-				if code >= 400 {
-					linkResp.Body.Close()
-					// Log in DB outages, then skip to next iteration
-					handleOutage(dbIn, domain, url, code, crawlID, urlProps.referer)
-					continue
-				}
-
-				nextURL := url
-				// Check Redirects if 300 status, up to 10
-				if 299 < code && code < 400 {
-					for ; redirects <= 10; redirects++ {
-						// Reset Pre response to next url
-						preResp, respErr := http.NewRequest("GET", nextURL, nil)
-						if respErr != nil {
-							log.Println("PreResp Redirect Err: ", respErr)
-							// Skip to next url if error
-							break
-						}
-						// Next request
-						resp, err := http.DefaultTransport.RoundTrip(preResp)
-						if err != nil {
-							log.Println("Redirect Break: ", err)
-							urlErr = "Redirect Break: " + nextURL
-							code = 300
-							handleOutage(dbIn, domain, url, code, crawlID, urlProps.referer)
-							// Skip to next url if error
-							break
-						}
-
-						if resp.StatusCode == 200 {
-							code = resp.StatusCode
-							resp.Body.Close()
-							break
-						} else {
-							// Set next url to check
-							nextURL = resp.Header.Get("Location")
-							// Ignore http to https redirects, by retracting the increment
-							if strings.Trim(resp.Request.URL.String(), "http") == strings.Trim(nextURL, "https") {
-								redirects--
-							}
-
-							// Ignore redirects for trailing slash
-							subNext := nextURL
-							if last := len(subNext) - 1; last >= 0 && subNext[last] == '/' {
-								// If nextURL up has a trailing slash remove it
-								subNext = subNext[:last]
-							}
-							if subNext == resp.Request.URL.String() {
-								// Then if the current url and the nextURL(w/o the slash) are the same, ignore redirect
-								redirects--
-							}
-						}
-						resp.Body.Close()
-						if redirects > 10 || code > 399 {
-							// Log in DB outages, then skip to next iteration
-							handleOutage(dbIn, domain, url, code, crawlID, urlProps.referer)
-							break
-						}
-					}
-				}
-				// END Check redirects
-
-				// Make sure we are only dealing with good requests from here down
-				if code > 200 {
-					continue
-				}
-
-				// Response Time and TTFB, in milliseconds, *!* MAKE SURE we pass in final url from redirects
-				ttfb, respTime := timeGet(nextURL)
-
-				// Check if link is pdf, jpg, mp3, or png
-				if strings.HasSuffix(nextURL, ".jpg") || strings.HasSuffix(nextURL, ".pdf") ||
-					strings.HasSuffix(nextURL, ".png") || strings.HasSuffix(nextURL, ".mp3") {
-
-					// Insert into DB early if not a normal web page
-					insertPage(dbIn, domain, nextURL, code, respTime, ttfb, urlErr, redirects, crawlID)
-					// Then skip to next iteration without looking for links inside the picture, or song, or pdf, etc.
-					continue
-				}
-
-				// Check for closing /html tag, return true if /html is present
-				closeTag := checkCloseTag(nextURL)
-				if !closeTag {
-					urlErr = "/html"
-				}
-
-				// Grab all links on current url page
-				links := AllLinks(nextURL)
-
-				// Iterate through grabbed links and insert into url map list if not already in there
-				for _, link := range links {
-					// returns val if link already in urlList, found=false if not found
-					_, found := urlList[link]
-					if !found {
-						// insert link into map if not found
-						// check if link is long enough
-						if len(link) > 2 {
-							// Skip over iCal downloads
-							if strings.Contains(link, "iCal") {
-								continue
-							}
-							// if relative url append to Domain before insertion
-							if string(link[0]) == "/" {
-								link = "http://" + domain + link
-								_, found := urlList[link]
-								if !found {
-									urlList[link] = &UrlInfo{1, domain, url}
-								} else {
-									continue
-								}
-							} else if strings.Contains(link, domain) {
-								urlList[link] = &UrlInfo{1, domain, url}
-							}
-						}
-					}
-				}
-				// END getting new links
-
-				// Insert crawl info into DB
-				insertPage(dbIn, domain, nextURL, code, respTime, ttfb, urlErr, redirects, crawlID)
-
-				// Rest system between single page requests
-				time.Sleep(50 * time.Millisecond)
+			// Only get page links if it is a normal html page
+			if strings.HasPrefix(ctype, "text/html") {
+				urlList = retrieveLinks(urlList, &page)
 			}
+
+			// Rest system between single page requests
+			time.Sleep(50 * time.Millisecond)
 			// END if linkResp Successful
 		} else if !strings.Contains(url, domain) {
 			// If the url string doesn't have the Domain remove it from url list
-			//fmt.Println("deleting: ", url)
 			delete(urlList, url)
 		}
 		// END check if url is in Domain and status code
 	}
 	// return updated list with new urls
+	return urlList
+}
+
+// Helper func for page stats
+func pageScan(dbIn *sql.DB, resp *http.Response, page *PageStats, referer string) {
+	// Update Page struct
+	page.statusCode = resp.StatusCode
+
+	// If the landing url doesn't contain the domain then we've gone off track; skip
+	if !strings.Contains(page.url, page.domain) {
+		return
+	}
+
+	if page.statusCode >= 400 {
+		resp.Body.Close()
+		// Log in DB outages, then skip to next iteration
+		handleOutage(dbIn, page.domain, page.url, page.statusCode, page.crawlID, referer)
+		// Break crawl if we hit 500 error
+		if page.statusCode >= 500 {
+			cancelCrawl = true
+		}
+		return
+	}
+
+	// read the response body to a variable
+	bodyBytes, _ := ioutil.ReadAll(resp.Body)
+	// *!* After we are done with current loop's url: we must manually close connection to avoid mem leak *!*
+	resp.Body.Close()
+
+	// Response Time and TTFB, in milliseconds, *!* MAKE SURE we pass in final url from redirects
+	ttfb, respTime := timeGet(page.url)
+
+	// Check for closing /html tag, return true if /html is present
+	closeTag := checkCloseTag(bodyBytes)
+	if !closeTag {
+		page.urlErr = "/html"
+	}
+
+	// Insert crawl info into DB
+	insertPage(dbIn, page.domain, page.url, page.statusCode, respTime, ttfb, page.urlErr, page.redirects, page.crawlID)
+}
+
+// Helper for sub page link retrieval
+func retrieveLinks(urlList UrlList, page *PageStats) UrlList {
+	// Grab all links on current url page
+	links := AllLinks(page.url)
+
+	// Iterate through grabbed links and insert into url map list if not already in there
+	for _, link := range links {
+		// returns val if link already in urlList, found=false if not found
+		_, found := urlList[link]
+		if !found {
+			// insert link into map if not found
+			// check if link is long enough
+			if len(link) > 2 {
+				// Skip over iCal downloads
+				if strings.Contains(link, "iCal") {
+					continue
+				}
+				// if relative url append to Domain before insertion
+				if strings.HasPrefix(link, "/") {
+					link = "https://" + page.domain + link
+					_, found := urlList[link]
+					if !found {
+						urlList[link] = &UrlInfo{1, page.domain, page.url}
+					} else {
+						continue
+					}
+				} else if strings.Contains(link, page.domain) {
+					urlList[link] = &UrlInfo{1, page.domain, page.url}
+				}
+			}
+		}
+	}
+	// END getting new links
 	return urlList
 }
 
@@ -540,16 +517,7 @@ func timeGet(url string) (float64, float64) {
 }
 
 // Check response body for closing /html tags
-func checkCloseTag(url string) bool {
-	resp, err := http.Get(url)
-	if err != nil {
-		log.Println("Check Closing /HTML Tag ERR: ", url)
-		log.Println(err)
-		return true
-	}
-	defer resp.Body.Close() // close Body when the function returns
-
-	body, err := ioutil.ReadAll(resp.Body)
+func checkCloseTag(body []byte) bool {
 	lowerHTML := strings.Contains(string(body), "</html>")
 	upperHTML := strings.Contains(string(body), "</HTML>")
 	return lowerHTML || upperHTML
@@ -586,46 +554,6 @@ func AllLinks(url string) []string {
 					tl := removeHash(attr.Val)
 					col = append(col, tl)
 					resolve(&links, col)
-				}
-			}
-		}
-	}
-}
-
-// Finds optimizely tags on domains
-func OptlyLinks(url string) []string {
-	links := []string{}
-	col := []string{}
-
-	// If no protocol prepend it to url
-	if !strings.Contains(url, "http://") && !strings.Contains(url, "https://") {
-		url = "http://" + url
-	}
-
-	resp, err := http.Get(url)
-	if err != nil {
-		fmt.Println("ERROR: All Links Failed to crawl \"" + url + "\"")
-		fmt.Println(err)
-		return links
-	}
-	defer resp.Body.Close() // close Body when the function returns
-
-	page := html.NewTokenizer(resp.Body)
-	for {
-		tokenType := page.Next()
-		if tokenType == html.ErrorToken {
-			return links
-		}
-		token := page.Token()
-		if tokenType == html.StartTagToken && token.DataAtom.String() == "script" {
-			for _, attr := range token.Attr {
-
-				if attr.Key == "src" {
-					if strings.Contains(attr.Val, "optimizely") {
-						tl := removeHash(attr.Val)
-						col = append(col, tl)
-						resolve(&links, col)
-					}
 				}
 			}
 		}

@@ -6,7 +6,7 @@ import (
 	"log"
 )
 
-var errorMap = make(map[string]bool)
+var errorMap = make(map[string]int)
 
 // ErrorDaemon Starts the error handler service
 // where we double check errors that come up during crawl loops before sending out emails
@@ -18,31 +18,35 @@ func ErrorDaemon() {
 
 		// Check if errors need to be handled
 		if len(errorMap) > 0 {
-			log.Println(errorMap)
 			for errURL := range errorMap {
 				// get status of current error url
 				urlStatus := checkURLStatus(errURL)
 
-				// If error again, then send error email
-				if urlStatus >= 500 {
+				// If 500 error again, then send error email
+				if urlStatus >= 500 && errorMap[errURL] != urlStatus {
+					// update error map to have latest status code
+					errorMap[errURL] = urlStatus
+					// then send out the error email
 					EmailAlert(errURL, urlStatus)
 				}
 
-				// Then remove errUrl from the map
-				delete(errorMap, errURL)
+				// If status recovers then remove errUrl from the map
+				if urlStatus == 200 {
+					delete(errorMap, errURL)
+					EmailRecoveryAlert(errURL, urlStatus)
+				}
 			}
 		} else {
 			// No errors continue to sleep
 			continue
 		}
-		// fmt.Println(errorMap)
 	}
 }
 
 // AddError allow files to insert errors into the map
 func DaemonAddError(err string) {
-	// add into map
-	errorMap[err] = true
+	// add into map, set starting code to 0 so we know it's new
+	errorMap[err] = 0
 	log.Println("Add url ERR:", err)
 }
 

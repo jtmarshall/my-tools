@@ -151,7 +151,6 @@ func insertPage(dbIn *sql.DB, domain string, url string, code int, respTime floa
 	if err2 != nil {
 		log.Println("INSERT page ERR: ", err2)
 	}
-	// fmt.Println("Finish InsertDB Func")
 }
 
 // Called if status code is 5xx, insert info into outages table
@@ -309,9 +308,7 @@ func Get404DomainList() map[string][]Four04Props {
 	if len(cached404Domains) < 1 {
 		// Generate list if empty
 		Generate404List()
-	}
-
-	if lastStatusUpdate.Sub(time.Now()) < (-1 * time.Hour) {
+	} else if lastStatusUpdate.Sub(time.Now()) < (-1 * time.Hour) {
 		// If expired start update in separate routine so we can still return stale values
 		go Generate404List()
 		lastStatusUpdate = time.Now()
@@ -361,8 +358,9 @@ func Generate404List() {
 	}
 	defer query404.Close()
 
-	// Clear the list
+	// Clear the lists
 	cache404List = map[string][]string{}
+	cached404Domains = map[string][]Four04Props{}
 
 	// Temporary map for list gathering
 	temp404List := map[string][]string{}

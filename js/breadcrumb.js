@@ -3,12 +3,7 @@
  */
 
 // START Breadcrumb trail for webform analytics
-(() => {
-  // Set cookie with name(key) and value
-  var setCookie = (name, value) => {
-    document.cookie = name + "=" + value;
-  }
-
+(function () {
   // Get current page
   var currentPath = document.location.pathname;
   // Get last page from referrer; replacing host to just get path
@@ -27,12 +22,16 @@
     } else {
       // If cookie not empty append current path to original value
       seshCookie += '>' + currentPath;
-      console.log('update cookie: ', seshCookie);
       sessionStorage.setItem(cookieName, seshCookie);
     }
+  }
 
-    // Overwrite cookie with session storage val
-    setCookie(cookieName, seshCookie);
+  // Populate hidden seshCookie input's if on form page
+  if (document.getElementsByName('seshCookie').length > 0) {
+    // Loop through all seshCookie fields, there may be multiple
+    for (var i =0; i < document.getElementsByName('seshCookie').length; i++) {
+      document.getElementsByName('seshCookie')[i].value = sessionStorage.getItem('breadcrumbs');
+      }
   }
 })();
 // END Breadcrumbs

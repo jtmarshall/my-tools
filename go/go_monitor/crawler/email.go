@@ -30,18 +30,18 @@ var (
 	fromaddr     = creds.FromAddr
 	toaddr       = creds.ToAddr
 	emailList404 = creds.EmailList404
+	errEmail     = creds.ErrEmail
 )
 
 // NewEmail404 allows for csv attachment
 func NewEmail404() {
 	lockFile := "lock404.txt"
-
 	// Get lock file stats
 	info, err := os.Stat(lockFile)
 	// Check for lock file before we send emails. (If it doesn't exist or file is 24hours run email func)
-	if err != nil || time.Now().Sub(info.ModTime()) > (48 * time.Hour) {
+	if err != nil || time.Now().Sub(info.ModTime()) > (48*time.Hour) {
 		// Have to double check if statement for mod time on file so we can validate err also
-		if os.IsNotExist(err) || time.Now().Sub(info.ModTime()) > (48 * time.Hour) {
+		if os.IsNotExist(err) || time.Now().Sub(info.ModTime()) > (48*time.Hour) {
 			// Lock file doesn't exist; create the lock file
 			f, fErr := os.Create(lockFile)
 			defer f.Close()
@@ -58,8 +58,8 @@ func NewEmail404() {
 
 			subject := "Monitor: 404 List"
 
-			m := email.NewMessage(subject, "See 404's Attached. \r\n You can view live daily updated 404's here: \r\n http://monitor.acadiadevelopment.com/ \r\n" +
-				"Time: " + time.Now().Format(time.Stamp))
+			m := email.NewMessage(subject, "See 404's Attached. \r\n You can view live daily updated 404's here: \r\n http://monitor.acadiadevelopment.com/ \r\n"+
+				"Time: "+time.Now().Format(time.Stamp))
 			// compose the message
 			m.From = mail.Address{Name: "Acadia Monitoring", Address: fromaddr}
 			m.To = emailList404
@@ -89,6 +89,35 @@ func NewEmail404() {
 			deleteFile(lockFile)
 		}
 	}
+}
+
+// Search Crawl Email
+func SearchCrawlEmail(userEmail string, domain string, crawlList SearchUrlList) {
+	// START: 404 email creation
+	fileName := "Crawl_Search.csv"
+
+	headers := []string{"Page", "Status Code", "Comments"}
+	// Generate/overwrite csv
+	GenerateCSV(fileName, headers, crawlList)
+	subject := "Monitor: Search Crawl: " + domain
+
+	m := email.NewMessage(subject, "See Search Crawl Attached. \r\n"+
+		"Time: "+time.Now().Format(time.Stamp))
+	// compose the message
+	m.From = mail.Address{Name: "Acadia Monitoring", Address: fromaddr}
+	m.To = []string{userEmail}
+	// Attach the file to email
+	if err := m.Attach(fileName); err != nil {
+		log.Println(err)
+	}
+
+	// send it
+	auth := smtp.PlainAuth("", emailHostUser, emailHostPass, emailHost)
+	if err := email.Send(emailHost+emailPort, auth, m); err != nil {
+		log.Println(err)
+	}
+	// Delete the 404 file after were finished
+	deleteFile(fileName)
 }
 
 // Email 404 csv for manual crawl
@@ -213,11 +242,31 @@ func EmailAlert(url string, code int) {
 		"To: " + strings.Join(soloEmail, ",") + "\r\n" +
 			"Subject: Monitor: " + fmt.Sprint(code) + " Alert\r\n" + "\r\n" +
 			"Status: " + fmt.Sprint(code) + "\r\n" +
-			"On page: " + url + "\r\n" +
+			"Page: " + url + "\r\n" +
 			"Time: " + time.Now().Format(time.Stamp))
 
 	// Connect to the server, authenticate, set the sender, recipient, and pass in the msg
-	err := smtp.SendMail(emailHost+emailPort, auth, fromaddr, soloEmail, msg)
+	err := smtp.SendMail(emailHost+emailPort, auth, fromaddr, errEmail, msg)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+// EmailAlert notifies email list of error; without Domain needed
+func EmailRecoveryAlert(url string, code int) {
+	// Set up authentication information.
+	auth := smtp.PlainAuth("", emailHostUser, emailHostPass, emailHost)
+
+	// Setup message to send
+	msg := []byte(
+		"To: " + strings.Join(soloEmail, ",") + "\r\n" +
+			"Subject: Monitor: " + url + " Recovered\r\n" + "\r\n" +
+			"Status: " + fmt.Sprint(code) + "\r\n" +
+			"Page: " + url + "\r\n" +
+			"Time: " + time.Now().Format(time.Stamp))
+
+	// Connect to the server, authenticate, set the sender, recipient, and pass in the msg
+	err := smtp.SendMail(emailHost+emailPort, auth, fromaddr, errEmail, msg)
 	if err != nil {
 		log.Fatal(err)
 	}
