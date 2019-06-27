@@ -30,10 +30,14 @@ func ErrorDaemon() {
 					EmailAlert(errURL, urlStatus)
 				}
 
-				// If status recovers then remove errUrl from the map
+				// If status recovers
 				if urlStatus == 200 {
+					// Remove errUrl from the map
 					delete(errorMap, errURL)
-					EmailRecoveryAlert(errURL, urlStatus)
+					// Only send recovery email if last status was 500
+					if errorMap[errURL] >= 500 {
+						EmailRecoveryAlert(errURL, urlStatus)
+					}
 				}
 			}
 		} else {
@@ -47,7 +51,7 @@ func ErrorDaemon() {
 func DaemonAddError(err string) {
 	// add into map, set starting code to 0 so we know it's new
 	errorMap[err] = 0
-	log.Println("Add url ERR:", err)
+	log.Println("Adding URL to ErrorDaemon:", err)
 }
 
 // re-parse url
