@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>SKUle Login</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css"
+          integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon/logo-yellow.png') }}">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+
+        h1 {
+            text-align: center;
+        }
+
+        .logo {
+            height: 120px;
+            margin: auto;
+            display: block;
+        }
+
+        .lead {
+            text-align: center;
+        }
+
+        .headerContainer {
+            background-color: #222;
+            color: #fff;
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 0;
+            height: 220px;
+        }
+
+        .contentContainer {
+            margin-top: 240px;
+        }
+    </style>
+</head>
+<body>
+<div class="headerContainer">
+    <img alt="logo" src="{{ url_for('static', filename='favicon/logo-yellow.png') }}" class="logo">
+    <h1>SKUle</h1>
+    <p class="lead">Please Login</p>
+</div>
+<div class="contentContainer container">
+
+    {% if form.errors %}
+        <ul class="alert alert-danger">
+            {% for field, errors in form.errors.items() %}
+                <li>{{ field }} {% for error in errors %}{{ error }}{% endfor %}</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+
+    <form action="{{ url_for('simplelogin.login') }}" method="post">
+        <div class="form-group">
+            {{ form.csrf_token }}
+            {{ form.username.label }}
+            {{ form.username(class_='form-control') }}
+            <br>
+            {{ form.password.label }}
+            {{ form.password(class_='form-control') }}
+            <br>
+            {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+            <input class="btn btn-primary btn-lg btn-block" type="submit" value="Login">
+        </div>
+    </form>
+</div>
+</body>
+</html>

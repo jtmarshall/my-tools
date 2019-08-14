@@ -1,0 +1,20 @@
+{
+  "dev": {
+    "app_function": "server.server.app",
+    "profile_name": "eb-cli",
+    "project_name": "SKUle-Dev",
+    "runtime": "python3.6",
+    "s3_bucket": "skule",
+    "certificate_arn": "arn:aws:acm:us-east-1:699475778943:certificate/f562e0e8-acdc-4c46-921d-006f4fe0ec6a"
+  },
+  "prod": {
+    "app_function": "server.server.app",
+    "exclude": ["/node_modules", "*.rar"],
+    "profile_name": "eb-cli",
+    "project_name": "SKUle",
+    "runtime": "python3.6",
+    "s3_bucket": "skule",
+    "certificate_arn": "arn:aws:acm:us-east-1:699475778943:certificate/f562e0e8-acdc-4c46-921d-006f4fe0ec6a",
+    "domain": "skule.acadiadevelopment.com"
+  }
+}

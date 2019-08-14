@@ -1,2 +1,2 @@
 # my-tools
-Subset of tools/scripts created for enterprise needs.
+Subset of tools, scripts, and apps created for enterprise needs.
