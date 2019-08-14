@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!--Auto refresh page every 30 sec-->
+    <meta http-equiv="refresh" content="60" >
+    <title>Status</title>
+    <!--Bootstrap-->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css"
+          integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+</head>
+<body style="background-color: #616161; width: 98%; padding-left: 1%; text-align: center; font-size: .8em;">
+<!-- Display time variable up top -->
+<h3 style="color: #fff;">{{ .Time }}</h3>
+<div class="row" style="padding: 10px;">
+    <!-- Iterate through the Domains map passed into the Template Data -->
+    {{ range $domain, $val := .Domains}}
+        <!-- Check if the value at first index of int array, (which is the status code), is NOT 200 -->
+    {{ if (ne $val 200) }}
+    <div class="col-sm-3" style="padding: 5px;">
+        <div class="card bg-danger">
+            <!-- Link to the domain homepage -->
+            <a href='http://{{ $domain }}' target="_blank" style="color: #fff;">
+                <div class="card-body">
+                    <!-- Display homepage name in card text -->
+                    <p class="card-text">
+                        {{ $domain }}
+                        ({{ index $val 0 }})
+                    </p>
+                </div>
+            </a>
+        </div>
+    </div>
+    {{end}}
+    {{end}}
+</div>
+
+<div class="row" style="padding: 10px;">
+    <!-- Iterate through the Domains map passed into the Template Data -->
+    {{ range $domain, $val := .Domains}}
+        <!-- Check if the value at first index of int array, (which is the status code), IS 200 -->
+    {{ if (eq $val 200) }}
+    <div class="col-sm-3" style="padding: 5px;">
+        <div class="card bg-success">
+            <!-- Link to the domain homepage -->
+            <a href='http://{{ $domain }}' target="_blank" style="color: #fff;">
+                <div class="card-body">
+                    <!-- Display homepage name in card text -->
+                    <p class="card-text">{{ $domain }}</p>
+                </div>
+            </a>
+        </div>
+    </div>
+    {{end}}
+    {{end}}
+</div>
+
+</body>
+</html>
