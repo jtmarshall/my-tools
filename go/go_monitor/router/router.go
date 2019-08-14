@@ -32,10 +32,36 @@ type DomainInfo struct {
 	GraphData404    []float64
 }
 
+// (From Eric's router) modified logger to show accessIP from AWS
+func requestLog(next http.Handler) http.Handler {
+	// todo: replace log with logger instance that logs to file
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		start := time.Now().UTC()
+		uri := r.RequestURI
+		ip := r.RemoteAddr
+		host := r.Header.Get("Host")
+		userAgent := r.Header.Get("User-Agent")
+		accessIP := r.Header.Get("X-Forwarded-For")
+
+		// Call the next handler, which can be another middleware in the chain, or the final handler.
+		next.ServeHTTP(w, r)
+
+		end := time.Now().UTC()
+
+		// get the request latency
+		log.Printf("%s --> %s%s AS %s <-- %d IN %fs",
+			ip, host, uri, userAgent, accessIP, end.Sub(start).Seconds())
+	})
+}
+
 var ManualCrawlCache = map[string]*crawler.DomainStats{}
+var SearchCrawlCache = map[string]crawler.SearchUrlList{}
 
 // Run start up the router
 func Run() {
+	// Set port
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "5555"
@@ -44,33 +70,35 @@ func Run() {
 
 	// Display React View
 	mux.Handle("/", HandlerBasicAuth(http.FileServer(http.Dir("templates/build"))))
-	// mux.Handle("/404", HandlerBasicAuth(http.FileServer(http.Dir("templates/build"))))
-	// mux.HandleFunc("/404", func(w http.ResponseWriter, r *http.Request) {
-	//	http.ServeFile(w, r, "templates/build/index.html")
-	//})
 
 	// Starts manual crawl on single domain, Returns stats to page
 	mux.HandleFunc("/api/runCrawl", BasicAuth(manualCrawl))
-
 	// Returns weekly data
 	mux.HandleFunc("/api/monitorstatus", BasicAuth(monitorStatusPage))
-
 	// Returns monthly data
 	mux.HandleFunc("/api/monthlymonitorstatus", BasicAuth(monitorMonthlyStatusPage))
-
 	// Returns list of 404
 	mux.HandleFunc("/api/404list", get404List)
-	// Returns list of 404
+	// Returns facility list
 	mux.HandleFunc("/api/getFacilities", getFacilityList)
 
-	// Heartbeat
-	mux.HandleFunc("/health",
-		func(w http.ResponseWriter, r *http.Request) {
-			fmt.Fprintf(w, "Ok")
-		})
+	// Oauth handling
+	// mux.HandleFunc("/oauth", goauth.OauthLogin)
+	// mux.HandleFunc("/updatePak", goauth.UpdatePak)
 
-	// Start go routine for server to listen on port
-	http.ListenAndServe(":"+port, mux)
+	// Heartbeat
+	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		_, err := fmt.Fprintf(w, "Ok")
+		if err != nil {
+			log.Println(err)
+		}
+	})
+
+	// Start go routine for server to listen on port; wrapped with logging for router
+	err := http.ListenAndServe(":"+port, requestLog(mux))
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 // Middleware that requires builder7 user/pass to access route; For Handler
@@ -103,23 +131,24 @@ func BasicAuth(handler http.HandlerFunc) http.HandlerFunc {
 	realm := "Enter username and password"
 
 	return func(w http.ResponseWriter, r *http.Request) {
-
 		user, pass, ok := r.BasicAuth()
 
 		if !ok || subtle.ConstantTimeCompare([]byte(user), []byte(username)) != 1 || subtle.ConstantTimeCompare([]byte(pass), []byte(password)) != 1 {
 			w.Header().Set("WWW-Authenticate", `Basic realm="`+realm+`"`)
 			w.WriteHeader(401)
-			w.Write([]byte("Unauthorised.\n"))
+			_, err := w.Write([]byte("Unauthorised.\n"))
+			if err != nil {
+				log.Println(err)
+			}
 			return
 		}
-
 		handler(w, r)
 	}
 }
 
 // Manually start a full crawl for a domain
 func manualCrawl(w http.ResponseWriter, r *http.Request) {
-
+	// CORS header
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	switch r.Method {
 	case "POST":
@@ -142,18 +171,22 @@ func manualCrawl(w http.ResponseWriter, r *http.Request) {
 		// Make sure values for domain and email
 		if domain == "" || userEmail == "" {
 			log.Println("Form Data 'domain' or 'email' is missing")
-			fmt.Fprint(w, "ERR: 'domain' or 'email' is missing")
+			_, err := fmt.Fprint(w, "ERR: 'domain' or 'email' is missing")
+			if err != nil {
+				log.Fatal(err)
+			}
 			return
 		}
 
 		// Check if cached in map; return if it is
 		if _, ok := ManualCrawlCache[domain]; ok {
 			// right out response
-			fmt.Fprint(w, "Crawl Started: "+domain)
-
-			// If difference between time is less than an hour return here without updating cache
-			if ManualCrawlCache[domain].TimeStamp.Sub(time.Now()) > (-1 * time.Hour) {
-
+			_, err := fmt.Fprint(w, "Crawl Started: "+domain)
+			if err != nil {
+				log.Fatal(err)
+			}
+			// If difference between time is less than 5 min return here without updating cache
+			if ManualCrawlCache[domain].TimeStamp.Sub(time.Now()) > (-5 * time.Minute) {
 				// Split input email into array of email strings
 				sepEmail := strings.Split(userEmail, ",")
 
@@ -174,37 +207,48 @@ func manualCrawl(w http.ResponseWriter, r *http.Request) {
 			// Split input email into array of email strings
 			sepEmail := strings.Split(userEmail, ",")
 
-			// Start new crawl request; receives domain stats object
-			crawlResp, crawlID := crawler.SoloCrawl(domain)
+			// Search Crawl
+			if crawlType == "search" {
+				// Find search term in request form
+				searchTerm := r.FormValue("searchTerm")
+				crawlResp := crawler.SearchCrawl(domain, searchTerm)
 
-			// Handle whether user ordered sitemap or just 404's
-			if crawlType == "sitemap" {
-				sitemapList := crawlResp[domain].Sitemap
-				// CSV for sitemap
-				crawler.SitemapCSV(sitemapList, domain)
-				// Email sitemap csv
-				crawler.SitemapEmail(sepEmail, domain)
+				// Kick off Email process (builds csv then emails to user)
+				crawler.SearchCrawlEmail(userEmail, domain, crawlResp)
+				// Store it in the cache
+				SearchCrawlCache[domain] = crawlResp
 			} else {
-				list404 := crawlResp[domain].List404
-				count404 := len(crawlResp[domain].List404)
-				// Generate solo 404 csv
-				crawler.Solo404CSV(list404, domain)
-				// Email solo 404 csv
-				crawler.SoloEmail404(sepEmail, domain, count404)
+				// Start new crawl request; receives domain stats object
+				crawlResp, crawlID := crawler.SoloCrawl(domain)
+
+				// Handle whether user ordered sitemap or just 404's
+				if crawlType == "sitemap" {
+					sitemapList := crawlResp[domain].Sitemap
+					// CSV for sitemap
+					crawler.SitemapCSV(sitemapList, domain)
+					// Email sitemap csv
+					crawler.SitemapEmail(sepEmail, domain)
+				} else {
+					list404 := crawlResp[domain].List404
+					count404 := len(crawlResp[domain].List404)
+					// Generate solo 404 csv
+					crawler.Solo404CSV(list404, domain)
+					// Email solo 404 csv
+					crawler.SoloEmail404(sepEmail, domain, count404)
+				}
+				// Store it in the cache
+				ManualCrawlCache[domain] = crawlResp[domain]
+				log.Println("Cleaning DB", crawlID)
+				// Clean up db after solo crawl finishes; delete the rows after we handle data temporarily stored in DB by crawlID
+				crawler.DeleteSoloData(crawlID)
 			}
-
-			// Store it in the cache
-			ManualCrawlCache[domain] = crawlResp[domain]
-
-			statusJSON, _ := json.Marshal(crawlResp)
-
-			log.Println("Cleaning DB", crawlID, string(statusJSON))
-			// Clean up db after solo crawl finishes; delete the rows after we handle data temporarily stored in DB by crawlID
-			crawler.DeleteSoloData(crawlID)
 		}()
 
 		// right out response
-		fmt.Fprint(w, "Crawl Started: "+domain)
+		_, err := fmt.Fprint(w, "Crawl Started: "+domain)
+		if err != nil {
+			log.Println(err)
+		}
 	}
 }
 

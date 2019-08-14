@@ -3,7 +3,7 @@ package main
 import (
 	"./crawler"
 	"./router"
-
+	"log"
 	"time"
 
 	"gopkg.in/robfig/cron.v2"
@@ -13,25 +13,35 @@ func main() {
 	/* Cron Setup */
 	c := cron.New()
 	// Run 'All Crawl'
-	c.AddFunc("0 0 4 * * *", func() {
+	_, err := c.AddFunc("0 0 4 * * *", func() {
 		go crawler.RunAllCrawl()
 	})
+	if err != nil {
+		log.Println(err)
+	}
 	// Update (weekly/monthly) cache for front end every 2 hours
-	c.AddFunc("0 0 */2 * * *", func() {
+	_, err = c.AddFunc("0 0 */2 * * *", func() {
 		go crawler.StatusReportUpdateWeekly()
 		go crawler.StatusReportUpdateMonthly()
 	})
-	// Send Weekly Email
-	c.AddFunc("@weekly", func() {
-		go crawler.WeeklyEmailReport()
-
-		// Run 404 email list once a week
+	if err != nil {
+		log.Println(err)
+	}
+	// Send Weekly Email 6am
+	_, err = c.AddFunc("0 0 6 * * 0", func() {
 		go crawler.NewEmail404()
+		go crawler.WeeklyEmailReport()
 	})
+	if err != nil {
+		log.Println(err)
+	}
 	// Every month delete old data from DB
-	c.AddFunc("@monthly", func() {
+	_, err = c.AddFunc("@monthly", func() {
 		go crawler.DeleteOldData()
 	})
+	if err != nil {
+		log.Println(err)
+	}
 	c.Start()
 	/* END Cron Setup */
 
@@ -46,7 +56,7 @@ func main() {
 	go crawler.ErrorDaemon()
 
 	/* Main "Daemon Process" */
-	// Create channel to receive value from crawler
+	//Create channel to receive value from crawler
 	ch := make(chan bool)
 	check := true
 	for {
@@ -58,7 +68,7 @@ func main() {
 			// After crawl finishes reset flag back to true so we can spin up the crawl again
 			check = <-ch
 		}
-		// 10sec between homepage crawls
-		time.Sleep(10 * time.Second)
+		// 30sec between homepage crawls
+		time.Sleep(30 * time.Second)
 	}
 }
