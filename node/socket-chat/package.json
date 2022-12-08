@@ -4,7 +4,7 @@
     "main": "index.js",
     "description": "socket.io chat app",
     "dependencies": {
-        "express": "^4.16.4",
+        "express": "^4.18.2",
         "socket.io": "^2.1.1"
     }
 }
